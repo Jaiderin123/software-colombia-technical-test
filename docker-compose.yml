@@ -1,0 +1,52 @@
+services:
+
+  # --- Database Service (PostgreSQL) ---
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: software-colombia-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: project_manager_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - ./backend/local-env/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d project_manager_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Backend Service (Spring Boot) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: software-colombia-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_ENDPOINT: postgres-db:5432
+      DATABASE_NAME: project_manager_db
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: password123
+      JWT_SECRET: "CR0zMxXVfqMzeCsQJcEnJjhkphcScyueBh3b8Eq6l6S"
+      APP_BASE_PATH: "/api/v1"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  # --- Frontend Service (React + Nginx) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: software-colombia-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
